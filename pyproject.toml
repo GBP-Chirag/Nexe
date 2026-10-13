@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "postake"
+version = "0.1.0"
+description = "A fast, lightweight local build system"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    # Uses Python 3.11+ built-in tomllib, or add dependencies here if needed
+]
+
+[project.scripts]
+postake = "postake.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["postake*"]
