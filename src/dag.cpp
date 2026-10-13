@@ -82,7 +82,7 @@ void task() {
     Task t("build", {"clean", "compile"});
     t.command = "make all";
     t.inputs = {"src/main.cpp", "src/dag.cpp"};
-    t.outputs = {"build/postake_engine"};
+    t.outputs = {"build/Nexe_engine"};
 
     std::cout << "Task Name: " << t.name << "\n";
     std::cout << "Command: " << t.command << "\n";

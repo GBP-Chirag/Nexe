@@ -8,10 +8,10 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/home/chirag/Desktop/Nexe/src/dag.cpp" "CMakeFiles/postake_engine.dir/src/dag.cpp.o" "gcc" "CMakeFiles/postake_engine.dir/src/dag.cpp.o.d"
-  "/home/chirag/Desktop/Nexe/src/hasher.cpp" "CMakeFiles/postake_engine.dir/src/hasher.cpp.o" "gcc" "CMakeFiles/postake_engine.dir/src/hasher.cpp.o.d"
-  "/home/chirag/Desktop/Nexe/src/main.cpp" "CMakeFiles/postake_engine.dir/src/main.cpp.o" "gcc" "CMakeFiles/postake_engine.dir/src/main.cpp.o.d"
-  "" "postake_engine" "gcc" "CMakeFiles/postake_engine.dir/link.d"
+  "/home/chirag/Desktop/Nexe/src/dag.cpp" "CMakeFiles/Nexe_engine.dir/src/dag.cpp.o" "gcc" "CMakeFiles/Nexe_engine.dir/src/dag.cpp.o.d"
+  "/home/chirag/Desktop/Nexe/src/hasher.cpp" "CMakeFiles/Nexe_engine.dir/src/hasher.cpp.o" "gcc" "CMakeFiles/Nexe_engine.dir/src/hasher.cpp.o.d"
+  "/home/chirag/Desktop/Nexe/src/main.cpp" "CMakeFiles/Nexe_engine.dir/src/main.cpp.o" "gcc" "CMakeFiles/Nexe_engine.dir/src/main.cpp.o.d"
+  "" "Nexe_engine" "gcc" "CMakeFiles/Nexe_engine.dir/link.d"
   )
 
 # Targets to which this target links which contain Fortran sources.

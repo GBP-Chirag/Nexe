@@ -1,7 +1,7 @@
 #include "engine.hpp"
 
 int main(int argc, char** argv) {
-    CLI::App app{"postake_engine"};
+    CLI::App app{"Nexe_engine"};
 
     std::string input_file;
     app.add_option("-i,--input", input_file, "Input file")->required();

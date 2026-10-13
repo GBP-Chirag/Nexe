@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-echo "🚀 Setting up Postake V1 (Python + C++ Core)..."
+echo "🚀 Setting up Nexe V1 (Python + C++ Core)..."
 
 # 1. Verify system requirements
 if ! command -v cmake &> /dev/null; then
@@ -27,4 +27,4 @@ echo "📦 Installing Python CLI package..."
 python3 -m pip install --upgrade pip
 python3 -m pip install -e .
 
-echo "✅ Postake installation complete! Verify it works by running: postake --help"
+echo "✅ Nexe installation complete! Verify it works by running: Nexe --help"

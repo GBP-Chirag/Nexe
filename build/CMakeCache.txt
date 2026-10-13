@@ -125,7 +125,7 @@ CMAKE_PROJECT_DESCRIPTION:STATIC=
 CMAKE_PROJECT_HOMEPAGE_URL:STATIC=
 
 //Value Computed by CMake
-CMAKE_PROJECT_NAME:STATIC=postake_core
+CMAKE_PROJECT_NAME:STATIC=Nexe_core
 
 //Value Computed by CMake
 CMAKE_PROJECT_SPDX_LICENSE:STATIC=
@@ -196,13 +196,13 @@ CMAKE_TAPI:FILEPATH=CMAKE_TAPI-NOTFOUND
 CMAKE_VERBOSE_MAKEFILE:BOOL=FALSE
 
 //Value Computed by CMake
-postake_core_BINARY_DIR:STATIC=/home/chirag/Desktop/Nexe/build
+Nexe_core_BINARY_DIR:STATIC=/home/chirag/Desktop/Nexe/build
 
 //Value Computed by CMake
-postake_core_IS_TOP_LEVEL:STATIC=ON
+Nexe_core_IS_TOP_LEVEL:STATIC=ON
 
 //Value Computed by CMake
-postake_core_SOURCE_DIR:STATIC=/home/chirag/Desktop/Nexe
+Nexe_core_SOURCE_DIR:STATIC=/home/chirag/Desktop/Nexe
 
 
 ########################

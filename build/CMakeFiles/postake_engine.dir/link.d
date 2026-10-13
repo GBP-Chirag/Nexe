@@ -1,10 +1,10 @@
-postake_engine: \
+Nexe_engine: \
   /usr/lib/gcc/x86_64-unknown-linux-gnu/15.2.0/../../../x86_64-linux-gnu/Scrt1.o \
   /usr/lib/gcc/x86_64-unknown-linux-gnu/15.2.0/../../../x86_64-linux-gnu/crti.o \
   /usr/lib/gcc/x86_64-unknown-linux-gnu/15.2.0/crtbeginS.o \
-  CMakeFiles/postake_engine.dir/src/main.cpp.o \
-  CMakeFiles/postake_engine.dir/src/dag.cpp.o \
-  CMakeFiles/postake_engine.dir/src/hasher.cpp.o \
+  CMakeFiles/Nexe_engine.dir/src/main.cpp.o \
+  CMakeFiles/Nexe_engine.dir/src/dag.cpp.o \
+  CMakeFiles/Nexe_engine.dir/src/hasher.cpp.o \
   /usr/lib/gcc/x86_64-unknown-linux-gnu/15.2.0/../../../x86_64-linux-gnu/libstdc++.so \
   /usr/lib/gcc/x86_64-unknown-linux-gnu/15.2.0/../../../x86_64-linux-gnu/libm.so \
   /usr/lib/gcc/x86_64-unknown-linux-gnu/15.2.0/../../../x86_64-linux-gnu/libm.so \
@@ -39,11 +39,11 @@ postake_engine: \
 
 /usr/lib/gcc/x86_64-unknown-linux-gnu/15.2.0/crtbeginS.o:
 
-CMakeFiles/postake_engine.dir/src/main.cpp.o:
+CMakeFiles/Nexe_engine.dir/src/main.cpp.o:
 
-CMakeFiles/postake_engine.dir/src/dag.cpp.o:
+CMakeFiles/Nexe_engine.dir/src/dag.cpp.o:
 
-CMakeFiles/postake_engine.dir/src/hasher.cpp.o:
+CMakeFiles/Nexe_engine.dir/src/hasher.cpp.o:
 
 /usr/lib/gcc/x86_64-unknown-linux-gnu/15.2.0/../../../x86_64-linux-gnu/libstdc++.so:
 

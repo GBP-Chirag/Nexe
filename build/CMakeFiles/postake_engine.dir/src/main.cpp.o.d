@@ -1,4 +1,4 @@
-CMakeFiles/postake_engine.dir/src/main.cpp.o: \
+CMakeFiles/Nexe_engine.dir/src/main.cpp.o: \
  /home/chirag/Desktop/Nexe/src/main.cpp /usr/include/stdc-predef.h \
  /home/chirag/Desktop/Nexe/include/engine.hpp \
  /usr/include/c++/15.2.0/algorithm \
