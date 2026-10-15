@@ -1,32 +1,50 @@
-# Nexe 🚀
+# Nexe / Postake
 
-Nexe is a lightning-fast, lightweight, declarative local build system written in Rust, inspired by the minimal execution speed of Ninja and the flexible task-separation model of modern build frameworks like Buck2. 
+A high-performance, polyglot build system designed with a **"Dual-Mode" architecture**. For small local projects, it runs on a lightning-fast custom C/C++/Go core with zero overhead. When projects scale up, it seamlessly transpiles into industrial-grade enterprise tooling using Apache BuildStream, OpenDAL, and REAPI.
 
-Nexe is designed to run locally on your machine, using a Directed Acyclic Graph (DAG) and content-addressable hashing to ensure that only out-of-date tasks are rebuilt.
+---
 
-## Features (V1)
-- **TOML Configuration**: Clean and readable declarations for tasks, inputs, and outputs.
-- **DAG Engine**: Automatically resolves task execution order and catches circular dependencies.
-- **Atomic Hashing**: Uses `BLAKE3` to fingerprint inputs and skip unnecessary compilation steps.
-- **Local-First Safety**: Executes build commands natively without requiring heavy cloud clusters or container orchestration layers for local work.
+## 🏗️ Polyglot Architecture & Technology Stack
 
-## Example `build.toml`
+Nexe leverages the best tool for every layer of the build pipeline:
 
-```toml
-[[task]]
-name = "compile"
-command = "rustc src/main.rs -o build/main"
-inputs = ["src/main.rs"]
-outputs = ["build/main"]
-```
+* **Go**: CLI orchestration and lightweight concurrent task dispatch.
+* **C++**: Performance core handling Topological Sorting (Kahn's algorithm) and Content-Addressable Hashing.
+* **C (Bison & Flex)**: High-performance lexical analysis and parsing for your custom `.sbl` Domain Specific Language.
+* **Python**: Apache BuildStream integration and Jinja2 template generation for enterprise-scale configurations.
+* **Rust**: Future-proof cloud storage and object caching via Apache OpenDAL.
+* **Protobuf & gRPC**: Standardized Remote Execution API (REAPI) bridging for local-to-remote worker scaling.
 
-## Getting Started
+---
 
-1. Clone the repository and navigate to the project root.
-2. Run a build task using Cargo:
-   ```bash
-   cargo run -- build.toml
-   ```
+## 📂 Project Structure
 
-## License
-This project is licensed under the GNU General Public License v3.0 (GPLv3). See the [LICENSE](LICENSE) file for details.
+```text
+nexe/
+├── CMakeLists.txt                 # Builds the C++ core engine
+├── Makefile                       # Top-level automation for polyglot compilation
+├── go.mod / go.sum                # Go CLI & concurrent dispatcher dependencies
+├── Cargo.toml                     # Rust OpenDAL storage module (Future)
+├── pyproject.toml                 # Python orchestration & BuildStream configuration
+├── proto/                         # Shared REAPI Protocol Buffer definitions
+│   └── remote_execution.proto
+├── dsl/                           # Bison & Flex Parser (C)
+│   ├── lexer.l                    # Flex token rules for .sbl files
+│   ├── parser.y                   # Bison grammar for MODULE.sbl & BUILD.sbl
+│   └── ast.h                      # Abstract Syntax Tree definitions
+├── core_cpp/                      # C++ Performance Core
+│   ├── include/engine.hpp         # DAG and Hashing declarations
+│   └── src/                       # DAG sorting & hashing logic
+├── cli_go/                        # Go CLI & Concurrency Dispatcher
+│   ├── main.go                    # Entry point for user commands
+│   └── dispatcher.go              # Concurrent task runner
+├── storage_rust/                  # OpenDAL Cloud Storage Bridge (Rust)
+│   └── lib.rs                     # S3/GCS operations
+├── orchestrator_py/               # Python BuildStream & Jinja2 Engine
+│   ├── bridge.py                  # Translates parsed SBL to .bst (BuildStream)
+│   └── templates/                 # Jinja2 templates for large-scale configs
+├── scripts/
+│   ├── bootstrap.sh               # Environment and dependency check script
+│   └── install.sh                 # Compilation and setup automation
+└── tests/
+    └── integration_test.go        # End-to-end polyglot checks
