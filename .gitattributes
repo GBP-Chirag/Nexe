@@ -8,3 +8,8 @@ Makefile -linguist-detectable
 
 # If your build folder or binary objects are accidentally tracked, exclude them too:
 build/** linguist-vendored
+
+# Hide Makefiles from the language bar
+polygon-pattern-or-filename linguist-vendored
+# Or explicitly by language
+*.cmake linguist-documentation
