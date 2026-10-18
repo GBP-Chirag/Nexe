@@ -1,0 +1,26 @@
+name: SLSA provenance
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  generate-provenance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build artifacts (placeholder)
+        run: |
+          echo "This step should build your project's artifacts (C/C++/Go/Python)."
+          echo "Replace this with real build commands so provenance can record produced artifacts."
+      - name: Generate SLSA provenance (placeholder)
+        run: |
+          echo "Generate SLSA provenance for produced artifacts."
+          echo "You can use an action such as slsa-framework/slsa-provenance-action to produce provenance files."
+          mkdir -p provenance
+          echo "provenance: placeholder" > provenance/provenance.json
+      - name: Upload provenance artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: slsa-provenance
+          path: provenance/

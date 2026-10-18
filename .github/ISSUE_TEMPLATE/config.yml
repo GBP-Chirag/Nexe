@@ -1,0 +1,22 @@
+name: Nexe
+description: A build system
+default_branch: main
+languages:
+  - name: C++
+    percent: 55
+  - name: C
+    percent: 20.3
+  - name: Python
+    percent: 11
+  - name: Go
+    percent: 7.1
+  - name: Starlark
+    percent: 3
+  - name: PowerShell
+    percent: 2.2
+  - name: Shell
+    percent: 1.4
+ci:
+  go: .github/workflows/go.yml
+  cmake: .github/workflows/cmake.yml
+  slsa: .github/workflows/slsa.yml
