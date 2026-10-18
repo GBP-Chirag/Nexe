@@ -3,5 +3,5 @@
 *.tsx linguist-detectable=false
 
 # Example: Mark build outputs or specific generated Makefiles as ignored
-build/* linguist-generated=true
-Makefile linguist-generated=true
+build/* linguist-generated=false
+Makefile linguist-generated=false
