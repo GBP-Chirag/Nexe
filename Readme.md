@@ -1,8 +1,4 @@
-<div align="center">
-  <img src="assets/nexe-logo.png" alt="Nexe Logo" width="280" />
-  
- 
-# Nexe 
+ # Nexe 
 
 Nexe is a lightweight, declarative local build system. Its C++17 engine builds a Directed Acyclic Graph (DAG), fingerprints task inputs with BLAKE3, and skips a task when its inputs and command have not changed. The Go CLI uses Cobra and invokes the engine through a small Python bridge.
 
