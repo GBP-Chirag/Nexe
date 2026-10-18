@@ -1,3 +1,7 @@
 # Hide TypeScript from GitHub language stats
 *.ts linguist-detectable=false
 *.tsx linguist-detectable=false
+
+# Example: Mark build outputs or specific generated Makefiles as ignored
+build/* linguist-generated=true
+Makefile linguist-generated=true
