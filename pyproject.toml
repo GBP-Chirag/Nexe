@@ -6,15 +6,15 @@ build-backend = "setuptools.build_meta"
 name = "Nexe"
 version = "0.1.0"
 description = "A fast, lightweight local build system"
-readme = "README.md"
+readme = "Readme"
 requires-python = ">=3.8"
 dependencies = [
     # Uses Python 3.11+ built-in tomllib, or add dependencies here if needed
 ]
 
 [project.scripts]
-Nexe = "Nexe.cli:main"
+nexe-bridge = "_Nexe.Orchestration.bridge:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["Nexe*"]
+include = ["_Nexe*"]

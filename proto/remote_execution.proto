@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package nexe.remote.v1;
+
+option go_package = "github.com/chiragbalakrishna/nexe/proto;remoteexecution";
+
+// Digest identifies immutable task inputs and cached output trees.
+message Digest {
+  string algorithm = 1; // "blake3"
+  string hash = 2;      // lowercase hexadecimal digest
+  int64 size_bytes = 3;
+}
+
+message InputFile {
+  string path = 1;
+  Digest digest = 2;
+  bool executable = 3;
+}
+
+message Task {
+  string name = 1;
+  string command = 2;
+  repeated InputFile inputs = 3;
+  repeated string outputs = 4;
+  repeated string dependencies = 5;
+}
+
+message ExecuteRequest {
+  string request_id = 1;
+  Task task = 2;
+  string working_directory = 3;
+}
+
+message ExecuteEvent {
+  oneof event {
+    string stdout = 1;
+    string stderr = 2;
+    ExecuteResult result = 3;
+  }
+}
+
+message ExecuteResult {
+  int32 exit_code = 1;
+  repeated Digest output_digests = 2;
+  bool cache_hit = 3;
+}
+
+service RemoteExecution {
+  rpc Execute(ExecuteRequest) returns (stream ExecuteEvent);
+}

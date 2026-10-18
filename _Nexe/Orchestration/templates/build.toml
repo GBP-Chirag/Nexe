@@ -1,0 +1,7 @@
+# Legacy Nexe task manifest. Run: nexe build build.toml
+[[task]]
+name = "hello"
+command = "cc hello.c -o hello"
+inputs = ["hello.c"]
+outputs = ["hello"]
+dependencies = []

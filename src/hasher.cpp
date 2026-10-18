@@ -1,52 +1,48 @@
 #include "engine.hpp"
+#include "blake3.h"
 
-std::vector<std::string> Engine::splitData(const std::string& data) {
-    std::vector<std::string> parts;
-    std::string current;
-    for (char ch : data) {
-        if (std::isspace(static_cast<unsigned char>(ch))) {
-            if (!current.empty()) {
-                parts.push_back(current);
-                current.clear();
-            }
-        } else {
-            current.push_back(ch);
-        }
+#include <array>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
+
+namespace engine {
+namespace {
+std::string hexDigest(const uint8_t digest[BLAKE3_OUT_LEN]) {
+    std::ostringstream stream;
+    stream << std::hex << std::setfill('0');
+    for (std::size_t i = 0; i < BLAKE3_OUT_LEN; ++i) stream << std::setw(2) << static_cast<unsigned>(digest[i]);
+    return stream.str();
+}
+void updateString(blake3_hasher& hasher, const std::string& value) {
+    const uint64_t length = value.size();
+    blake3_hasher_update(&hasher, &length, sizeof(length));
+    blake3_hasher_update(&hasher, value.data(), value.size());
+}
+} // namespace
+
+std::string Hashing::hashFile(const std::filesystem::path& path, std::string& error) {
+    std::ifstream input(path, std::ios::binary);
+    if (!input) { error = "cannot read input '" + path.string() + "'"; return {}; }
+    blake3_hasher hasher; blake3_hasher_init(&hasher);
+    std::array<char, 64 * 1024> buffer{};
+    while (input.read(buffer.data(), buffer.size()) || input.gcount() > 0) {
+        blake3_hasher_update(&hasher, buffer.data(), static_cast<std::size_t>(input.gcount()));
     }
-    if (!current.empty()) {
-        parts.push_back(current);
-    }
-    return parts;
+    if (!input.eof()) { error = "failed while reading '" + path.string() + "'"; return {}; }
+    uint8_t digest[BLAKE3_OUT_LEN]; blake3_hasher_finalize(&hasher, digest, sizeof(digest));
+    return hexDigest(digest);
 }
 
-std::string Engine::hashData(const std::string& data) {
-#if HAVE_BLAKE3
-    uint8_t output[32];
-    blake3_hasher hasher;
-    blake3_hasher_init(&hasher);
-    blake3_hasher_update(&hasher, data.data(), data.size());
-    blake3_hasher_finalize(&hasher, output, sizeof(output));
-
-    std::ostringstream os;
-    os << std::hex << std::setfill('0');
-    for (std::size_t i = 0; i < sizeof(output); ++i) {
-        os << std::setw(2) << static_cast<int>(output[i]);
+std::string Hashing::taskFingerprint(const Task& task, const std::filesystem::path& root, std::string& error) {
+    blake3_hasher hasher; blake3_hasher_init(&hasher);
+    updateString(hasher, "nexe-task-v1"); updateString(hasher, task.name); updateString(hasher, task.command);
+    for (const std::string& inputName : task.inputs) {
+        const std::string digest = hashFile(root / inputName, error);
+        if (digest.empty()) return {};
+        updateString(hasher, inputName); updateString(hasher, digest);
     }
-    return os.str();
-#else
-    const std::size_t value = std::hash<std::string>{}(data);
-    std::ostringstream os;
-    os << std::hex << value;
-    return os.str();
-#endif
+    uint8_t digest[BLAKE3_OUT_LEN]; blake3_hasher_finalize(&hasher, digest, sizeof(digest));
+    return hexDigest(digest);
 }
-
-void Engine::processHashing() {
-    const std::string sample = "example data to hash";
-    const auto parts = splitData(sample);
-    for (const auto& piece : parts) {
-        const std::string hash = hashData(piece);
-        dataStore_[piece] = hash;
-        std::cout << "Hashed '" << piece << "' -> " << hash << '\n';
-    }
-}
+} // namespace engine

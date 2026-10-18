@@ -1,4 +1,10 @@
+/*  This is the project form creator Chirag Balakrishna.
+    This project is licensed under GPLv3
+    Thats it ! Feel free to contribute !! Happy Journey 😀
+*/
+
 #!/usr/bin/env bash
+
 set -e
 
 echo "🚀 Setting up Nexe V1 (Python + C++ Core)..."

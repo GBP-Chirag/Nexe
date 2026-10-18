@@ -1,0 +1,9 @@
+# Nexe's default build language. Run: nexe build BUILD.sbl
+COMPILER = "cc"
+OUTPUT_BIN = "hello"
+
+node hello {
+    source "hello.c"
+    target "${OUTPUT_BIN}"
+    run "${COMPILER} $SOURCES -o $TARGET"
+}

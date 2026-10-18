@@ -1,105 +1,214 @@
 #include "engine.hpp"
 
-std::vector<std::string> Engine::buildExecutionPlan() const {
-    DAG dag(3);
-    dag.addEdge(0, 1);
-    dag.addEdge(0, 2);
-    dag.addEdge(1, 2);
+#include <algorithm>
+#include <cctype>
+#include <fstream>
+#include <iostream>
+#include <queue>
+#include <unordered_map>
 
-    auto order = dag.topoSort();
-    if (order.empty()) {
-        return {};
+namespace engine {
+namespace {
+std::string trim(std::string value) {
+    const auto first = std::find_if_not(value.begin(), value.end(), [](unsigned char c) { return std::isspace(c); });
+    const auto last = std::find_if_not(value.rbegin(), value.rend(), [](unsigned char c) { return std::isspace(c); }).base();
+    return first >= last ? "" : std::string(first, last);
+}
+std::string unquote(const std::string& value) {
+    return value.size() >= 2 && value.front() == '"' && value.back() == '"' ? value.substr(1, value.size() - 2) : "";
+}
+bool stringArray(const std::string& value, std::vector<std::string>& values) {
+    values.clear(); const std::string input = trim(value);
+    if (input.size() < 2 || input.front() != '[' || input.back() != ']') return false;
+    std::size_t pos = 1;
+    while (pos < input.size() - 1) {
+        while (pos < input.size() - 1 && (std::isspace(static_cast<unsigned char>(input[pos])) || input[pos] == ',')) ++pos;
+        if (pos == input.size() - 1) break;
+        if (input[pos] != '"') return false;
+        const std::size_t end = input.find('"', pos + 1); if (end == std::string::npos) return false;
+        values.push_back(input.substr(pos + 1, end - pos - 1)); pos = end + 1;
+        while (pos < input.size() - 1 && std::isspace(static_cast<unsigned char>(input[pos]))) ++pos;
+        if (pos < input.size() - 1 && input[pos] != ',') return false;
     }
-
-    const std::vector<std::string> steps = {
-        "src/main.cpp",
-        "src/dag.cpp",
-        "src/hasher.cpp"
-    };
-
-    std::vector<std::string> plan;
-    for (int node : order) {
-        if (node >= 0 && node < static_cast<int>(steps.size())) {
-            plan.push_back(steps[node]);
-        }
+    return true;
+}
+bool parseField(Task& task, const std::string& key, const std::string& value, std::string& error) {
+    if (key == "name" || key == "command") {
+        const std::string parsed = unquote(value);
+        if (parsed.empty()) { error = key + " must be a non-empty quoted string"; return false; }
+        if (key == "name") task.name = parsed; else task.command = parsed;
+        return true;
     }
-    return plan;
+    if (key == "inputs" || key == "outputs" || key == "dependencies" || key == "deps") {
+        std::vector<std::string> parsed;
+        if (!stringArray(value, parsed)) { error = key + " must be an array of quoted strings"; return false; }
+        if (key == "inputs") task.inputs = std::move(parsed);
+        else if (key == "outputs") task.outputs = std::move(parsed);
+        else task.dependencies = std::move(parsed);
+        return true;
+    }
+    error = "unknown task key '" + key + "'"; return false;
+}
+bool validTask(const Task& task, std::string& error) {
+    if (task.name.empty() || task.command.empty()) { error = "every [[task]] needs both name and command"; return false; }
+    return true;
 }
 
-void Engine::processDAG(std::vector<std::string>& plan) {
-    auto sortedPlan = buildExecutionPlan();
-    if (sortedPlan.empty()) {
-        std::cerr << "No valid DAG execution plan could be generated.\n";
-        return;
+bool expandVariables(std::string& value, const std::unordered_map<std::string, std::string>& variables, std::string& error) {
+    std::size_t start = 0;
+    while ((start = value.find("${", start)) != std::string::npos) {
+        const std::size_t end = value.find('}', start + 2);
+        if (end == std::string::npos) { error = "unterminated variable reference"; return false; }
+        const std::string name = value.substr(start + 2, end - start - 2);
+        const auto variable = variables.find(name);
+        if (variable == variables.end()) { error = "undefined variable '" + name + "'"; return false; }
+        value.replace(start, end - start + 1, variable->second);
+        start += variable->second.size();
     }
-
-    std::cout << "Sorted DAG execution plan:\n";
-    for (const auto& step : sortedPlan) {
-        std::cout << "  - " << step << '\n';
-    }
-
-    plan = std::move(sortedPlan);
-    executePlan(plan);
+    return true;
 }
 
-void Engine::executePlan(const std::vector<std::string>& sortedPlan) {
-    std::cout << "Setting compiler environment variables...\n";
-    setenv("CC", "gcc", 1);
-    setenv("CXX", "g++", 1);
-    setenv("CPPFLAGS", "-Iinclude", 1);
-    setenv("CFLAGS", "-O2 -Wall", 1);
-    setenv("CXXFLAGS", "-O2 -Wall -std=c++17", 1);
+std::string shellQuote(const std::string& value) {
+    std::string quoted = "'";
+    for (const char character : value) quoted += character == '\'' ? "'\\''" : std::string(1, character);
+    return quoted + "'";
+}
 
-    const char* path = std::getenv("PATH");
-    if (path != nullptr) {
-        setenv("PATH", path, 1);
-    }
-
-    std::cout << "Executing local compiler commands via system()...\n";
-    for (const auto& step : sortedPlan) {
-        const std::string lower = step;
-        if (lower.find(".hpp") != std::string::npos || lower.find(".h") != std::string::npos) {
-            std::cout << "Skipping header-only dependency: " << step << '\n';
-            continue;
-        }
-
-        std::string compiler = "gcc";
-        const std::string compiler_check = "command -v clang >/dev/null 2>&1";
-        if (std::system(compiler_check.c_str()) == 0) {
-            compiler = "clang";
-        }
-
-        std::string command = compiler + " -Iinclude -c " + step + " -o " + step + ".o";
-        std::cout << "  $ " << command << '\n';
-        const int exit_code = std::system(command.c_str());
-        if (exit_code != 0) {
-            std::cerr << "Compiler invocation failed for '" << step << "' with exit code " << exit_code << '\n';
-        }
+void replaceAll(std::string& value, const std::string& needle, const std::string& replacement) {
+    std::size_t position = 0;
+    while ((position = value.find(needle, position)) != std::string::npos) {
+        value.replace(position, needle.size(), replacement);
+        position += replacement.size();
     }
 }
 
-void task() {
-    Task t("build", {"clean", "compile"});
-    t.command = "make all";
-    t.inputs = {"src/main.cpp", "src/dag.cpp"};
-    t.outputs = {"build/Nexe_engine"};
-
-    std::cout << "Task Name: " << t.name << "\n";
-    std::cout << "Command: " << t.command << "\n";
-    std::cout << "Dependencies: ";
-    for (std::size_t i = 0; i < t.dependencies.size(); ++i) {
-        if (i) std::cout << ", ";
-        std::cout << t.dependencies[i];
-    }
-    std::cout << "\nInputs: ";
-    for (std::size_t i = 0; i < t.inputs.size(); ++i) {
-        if (i) std::cout << ", ";
-        std::cout << t.inputs[i];
-    }
-    std::cout << "\nOutputs: ";
-    for (std::size_t i = 0; i < t.outputs.size(); ++i) {
-        if (i) std::cout << ", ";
-        std::cout << t.outputs[i];
-    }
-    std::cout << std::endl;
+bool quotedValue(const std::string& statement, const std::string& keyword, std::string& value) {
+    if (statement.rfind(keyword, 0) != 0) return false;
+    const std::string remainder = trim(statement.substr(keyword.size()));
+    if (remainder.size() < 2 || remainder.front() != '"' || remainder.back() != '"') return false;
+    value = remainder.substr(1, remainder.size() - 2);
+    return true;
 }
+
+bool finishSblNode(Task& task, std::string commandTemplate,
+                   const std::unordered_map<std::string, std::string>& variables, std::vector<Task>& tasks,
+                   std::string& error) {
+    if (task.name.empty() || commandTemplate.empty()) { error = "every node needs a name and run command"; return false; }
+    if (task.inputs.empty() || task.outputs.empty()) { error = "node '" + task.name + "' needs at least one source and target"; return false; }
+    if (!expandVariables(commandTemplate, variables, error)) return false;
+    std::string sources;
+    for (const auto& source : task.inputs) { if (!sources.empty()) sources += " "; sources += shellQuote(source); }
+    replaceAll(commandTemplate, "$SOURCES", sources);
+    replaceAll(commandTemplate, "$TARGET", shellQuote(task.outputs.front()));
+    task.command = std::move(commandTemplate);
+    tasks.push_back(std::move(task));
+    return true;
+}
+
+bool parseSbl(std::istream& file, std::vector<Task>& tasks, std::string& error) {
+    std::unordered_map<std::string, std::string> variables;
+    Task current; std::string commandTemplate, line; bool inNode = false; std::size_t lineNumber = 0;
+    while (std::getline(file, line)) {
+        ++lineNumber; const auto comment = line.find('#'); if (comment != std::string::npos) line.erase(comment); line = trim(line);
+        if (line.empty()) continue;
+        if (line == "}") {
+            if (!inNode) { error = "line " + std::to_string(lineNumber) + ": unexpected '}'"; return false; }
+            if (!finishSblNode(current, commandTemplate, variables, tasks, error)) { error = "line " + std::to_string(lineNumber) + ": " + error; return false; }
+            current = Task{}; commandTemplate.clear(); inNode = false; continue;
+        }
+        if (!inNode && line.rfind("node ", 0) == 0 && line.back() == '{') {
+            const std::string name = trim(line.substr(5, line.size() - 6));
+            if (name.empty() || name.find_first_of(" \t") != std::string::npos) { error = "line " + std::to_string(lineNumber) + ": node name must be one word"; return false; }
+            current.name = name; inNode = true; continue;
+        }
+        if (!inNode) {
+            const auto equals = line.find('=');
+            if (equals == std::string::npos) { error = "line " + std::to_string(lineNumber) + ": expected NAME = \"value\" or node"; return false; }
+            const std::string key = trim(line.substr(0, equals)), value = trim(line.substr(equals + 1));
+            if (key.empty() || value.size() < 2 || value.front() != '"' || value.back() != '"') { error = "line " + std::to_string(lineNumber) + ": variables must use NAME = \"value\""; return false; }
+            std::string expanded = value.substr(1, value.size() - 2);
+            if (!expandVariables(expanded, variables, error)) { error = "line " + std::to_string(lineNumber) + ": " + error; return false; }
+            variables[key] = std::move(expanded); continue;
+        }
+        std::string value;
+        if (quotedValue(line, "source", value)) {
+            if (!expandVariables(value, variables, error)) { error = "line " + std::to_string(lineNumber) + ": " + error; return false; }
+            current.inputs.push_back(std::move(value)); continue;
+        }
+        if (quotedValue(line, "target", value)) {
+            if (!expandVariables(value, variables, error)) { error = "line " + std::to_string(lineNumber) + ": " + error; return false; }
+            current.outputs.push_back(std::move(value)); continue;
+        }
+        if (quotedValue(line, "depends", value)) { current.dependencies.push_back(std::move(value)); continue; }
+        if (quotedValue(line, "run", value)) { commandTemplate = std::move(value); continue; }
+        error = "line " + std::to_string(lineNumber) + ": expected source, target, depends, run, or '}'"; return false;
+    }
+    if (inNode) { error = "node '" + current.name + "' is missing closing '}'"; return false; }
+    if (tasks.empty()) { error = "BUILD.sbl contains no nodes"; return false; }
+    return true;
+}
+} // namespace
+
+bool Engine::loadManifest(const std::filesystem::path& manifest, std::string& error) {
+    std::ifstream file(manifest);
+    if (!file) { error = "cannot open manifest '" + manifest.string() + "'"; return false; }
+    tasks_.clear(); root_ = std::filesystem::absolute(manifest).parent_path();
+    if (manifest.extension() == ".sbl") return parseSbl(file, tasks_, error);
+    Task current; bool inTask = false; std::string line; std::size_t lineNumber = 0;
+    while (std::getline(file, line)) {
+        ++lineNumber; const auto comment = line.find('#'); if (comment != std::string::npos) line.erase(comment); line = trim(line);
+        if (line.empty()) continue;
+        if (line == "[[task]]") {
+            if (inTask) { if (!validTask(current, error)) { error += " before line " + std::to_string(lineNumber); return false; } tasks_.push_back(std::move(current)); current = Task{}; }
+            inTask = true; continue;
+        }
+        if (!inTask) { error = "line " + std::to_string(lineNumber) + " is outside a [[task]] table"; return false; }
+        const auto equals = line.find('=');
+        if (equals == std::string::npos) { error = "line " + std::to_string(lineNumber) + " must contain '='"; return false; }
+        if (!parseField(current, trim(line.substr(0, equals)), trim(line.substr(equals + 1)), error)) { error = "line " + std::to_string(lineNumber) + ": " + error; return false; }
+    }
+    if (inTask) { if (!validTask(current, error)) return false; tasks_.push_back(std::move(current)); }
+    if (tasks_.empty()) { error = "manifest contains no [[task]] tables"; return false; }
+    return true;
+}
+
+bool Engine::executionPlan(std::vector<std::size_t>& plan, std::string& error) const {
+    std::unordered_map<std::string, std::size_t> index; std::vector<std::size_t> degree(tasks_.size()); std::vector<std::vector<std::size_t>> outgoing(tasks_.size());
+    for (std::size_t i = 0; i < tasks_.size(); ++i) if (!index.emplace(tasks_[i].name, i).second) { error = "duplicate task name '" + tasks_[i].name + "'"; return false; }
+    for (std::size_t i = 0; i < tasks_.size(); ++i) for (const auto& dependency : tasks_[i].dependencies) {
+        const auto found = index.find(dependency);
+        if (found == index.end()) { error = "task '" + tasks_[i].name + "' depends on unknown task '" + dependency + "'"; return false; }
+        outgoing[found->second].push_back(i); ++degree[i];
+    }
+    std::queue<std::size_t> ready; for (std::size_t i = 0; i < tasks_.size(); ++i) if (degree[i] == 0) ready.push(i);
+    plan.clear(); while (!ready.empty()) { const auto current = ready.front(); ready.pop(); plan.push_back(current); for (const auto next : outgoing[current]) if (--degree[next] == 0) ready.push(next); }
+    if (plan.size() != tasks_.size()) { error = "task dependency graph contains a cycle"; return false; }
+    return true;
+}
+
+std::filesystem::path Engine::statePath(const Task& task) const {
+    std::string safe; for (const unsigned char c : task.name) safe += std::isalnum(c) || c == '-' || c == '_' ? static_cast<char>(c) : '_';
+    return root_ / ".nexe" / "state" / (safe + ".hash");
+}
+bool Engine::outputsExist(const Task& task) const {
+    return !task.outputs.empty() && std::all_of(task.outputs.begin(), task.outputs.end(), [this](const std::string& output) { return std::filesystem::exists(root_ / output); });
+}
+bool Engine::build(std::string& error) {
+    std::vector<std::size_t> plan; if (!executionPlan(plan, error)) return false;
+    for (const auto index : plan) {
+        const Task& task = tasks_[index]; const auto state = statePath(task); const std::string fingerprint = Hashing::taskFingerprint(task, root_, error); if (fingerprint.empty()) return false;
+        std::string previous; { std::ifstream input(state); std::getline(input, previous); }
+        if (previous == fingerprint && outputsExist(task)) { std::cout << "[skip] " << task.name << " (inputs unchanged)\n"; continue; }
+        std::cout << "[build] " << task.name << "\n  $ " << task.command << '\n';
+        const std::string command = "cd \"" + root_.string() + "\" && " + task.command;
+        if (std::system(command.c_str()) != 0) { error = "task '" + task.name + "' failed"; return false; }
+        if (!outputsExist(task)) { error = "task '" + task.name + "' completed but did not create every declared output"; return false; }
+        std::error_code createError; std::filesystem::create_directories(state.parent_path(), createError); if (createError) { error = "cannot create state directory: " + createError.message(); return false; }
+        const auto temporary = state.string() + ".tmp"; { std::ofstream output(temporary); if (!output) { error = "cannot write state for '" + task.name + "'"; return false; } output << fingerprint << '\n'; }
+        std::error_code renameError; std::filesystem::rename(temporary, state, renameError);
+        if (renameError) { std::filesystem::remove(state, renameError); renameError.clear(); std::filesystem::rename(temporary, state, renameError); }
+        if (renameError) { error = "cannot store state for '" + task.name + "': " + renameError.message(); return false; }
+    }
+    return true;
+}
+} // namespace engine

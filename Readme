@@ -1,32 +1,51 @@
 # Nexe 🚀
 
-Nexe is a lightning-fast, lightweight, declarative local build system written in Rust, inspired by the minimal execution speed of Ninja and the flexible task-separation model of modern build frameworks like Buck2. 
-
-Nexe is designed to run locally on your machine, using a Directed Acyclic Graph (DAG) and content-addressable hashing to ensure that only out-of-date tasks are rebuilt.
+Nexe is a lightweight, declarative local build system. Its C++17 engine builds a Directed Acyclic Graph (DAG), fingerprints task inputs with BLAKE3, and skips a task when its inputs and command have not changed. The Go CLI uses Cobra and invokes the engine through a small Python bridge.
 
 ## Features (V1)
-- **TOML Configuration**: Clean and readable declarations for tasks, inputs, and outputs.
-- **DAG Engine**: Automatically resolves task execution order and catches circular dependencies.
-- **Atomic Hashing**: Uses `BLAKE3` to fingerprint inputs and skip unnecessary compilation steps.
-- **Local-First Safety**: Executes build commands natively without requiring heavy cloud clusters or container orchestration layers for local work.
+- **SBL Configuration**: A concise `BUILD.sbl` language for variables and build nodes.
+- **TOML Compatibility**: Existing `build.toml` files remain supported while SBL becomes the default.
+- **DAG Engine**: Resolves task order and reports circular or missing dependencies.
+- **BLAKE3 Hashing**: Stores content fingerprints in `.nexe/state/` only after a task succeeds.
+- **Incremental Builds**: A task is skipped when its command and declared inputs match its saved fingerprint and its outputs still exist.
 
-## Example `build.toml`
+## Example `BUILD.sbl`
 
-```toml
-[[task]]
-name = "compile"
-command = "rustc src/main.rs -o build/main"
-inputs = ["src/main.rs"]
-outputs = ["build/main"]
+```sbl
+# BUILD.sbl
+COMPILER = "g++"
+OUTPUT_BIN = "build/nexe"
+
+node build_nexe {
+    source "core_cpp/src/main.cpp"
+    source "core_cpp/src/dag.cpp"
+    source "core_cpp/src/hasher.cpp"
+
+    target "${OUTPUT_BIN}"
+
+    run "${COMPILER} -std=c++17 -I core_cpp/include $SOURCES -o $TARGET"
+}
 ```
 
 ## Getting Started
 
-1. Clone the repository and navigate to the project root.
-2. Run a build task using Cargo:
+1. Build the engine:
    ```bash
-   cargo run -- build.toml
+   cmake -S . -B build
+   cmake --build build
    ```
+2. Run an SBL build file directly:
+   ```bash
+   ./build/nexe_engine build BUILD.sbl
+   ```
+3. Or install Go, then use the Cobra CLI:
+   ```bash
+   cd Nexe_CLI
+   go run . init ../example
+   go run . build ../example/BUILD.sbl
+   ```
+
+The bridge builds the C++ engine automatically when no `--engine` path or `NEXE_ENGINE` environment variable is supplied.
 
 ## License
 This project is licensed under the GNU General Public License v3.0 (GPLv3). See the [LICENSE](LICENSE) file for details.
