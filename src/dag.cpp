@@ -7,6 +7,10 @@
 #include <queue>
 #include <unordered_map>
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
+
 namespace engine {
 namespace {
 std::string trim(std::string value) {
@@ -81,6 +85,39 @@ void replaceAll(std::string& value, const std::string& needle, const std::string
         position += replacement.size();
     }
 }
+
+#ifdef _WIN32
+std::string base64Encode(const std::string& bytes) {
+    static constexpr char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    std::string encoded;
+    for (std::size_t i = 0; i < bytes.size(); i += 3) {
+        const uint32_t chunk = (static_cast<uint32_t>(static_cast<unsigned char>(bytes[i])) << 16) |
+            (i + 1 < bytes.size() ? static_cast<uint32_t>(static_cast<unsigned char>(bytes[i + 1])) << 8 : 0) |
+            (i + 2 < bytes.size() ? static_cast<uint32_t>(static_cast<unsigned char>(bytes[i + 2])) : 0);
+        encoded += alphabet[(chunk >> 18) & 63]; encoded += alphabet[(chunk >> 12) & 63];
+        encoded += i + 1 < bytes.size() ? alphabet[(chunk >> 6) & 63] : '=';
+        encoded += i + 2 < bytes.size() ? alphabet[chunk & 63] : '=';
+    }
+    return encoded;
+}
+
+int runNativeShell(const std::string& command) {
+    // PowerShell's EncodedCommand takes UTF-16LE Base64, avoiding cmd.exe
+    // quoting rules and supporting paths/commands containing spaces.
+    const int length = MultiByteToWideChar(CP_UTF8, 0, command.data(), static_cast<int>(command.size()), nullptr, 0);
+    if (length <= 0) return -1;
+    std::wstring wide(static_cast<std::size_t>(length), L'\0');
+    if (MultiByteToWideChar(CP_UTF8, 0, command.data(), static_cast<int>(command.size()), wide.data(), length) <= 0) return -1;
+    std::string utf16;
+    utf16.reserve(wide.size() * 2);
+    for (const wchar_t character : wide) { utf16 += static_cast<char>(character & 0xff); utf16 += static_cast<char>((character >> 8) & 0xff); }
+    return std::system(("powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand " + base64Encode(utf16)).c_str());
+}
+#else
+int runNativeShell(const std::string& command) {
+    return std::system(command.c_str());
+}
+#endif
 
 bool quotedValue(const std::string& statement, const std::string& keyword, std::string& value) {
     if (statement.rfind(keyword, 0) != 0) return false;
@@ -200,8 +237,16 @@ bool Engine::build(std::string& error) {
         std::string previous; { std::ifstream input(state); std::getline(input, previous); }
         if (previous == fingerprint && outputsExist(task)) { std::cout << "[skip] " << task.name << " (inputs unchanged)\n"; continue; }
         std::cout << "[build] " << task.name << "\n  $ " << task.command << '\n';
-        const std::string command = "cd \"" + root_.string() + "\" && " + task.command;
-        if (std::system(command.c_str()) != 0) { error = "task '" + task.name + "' failed"; return false; }
+        std::error_code directoryError;
+        const auto originalDirectory = std::filesystem::current_path(directoryError);
+        if (directoryError) { error = "cannot read current directory: " + directoryError.message(); return false; }
+        std::filesystem::current_path(root_, directoryError);
+        if (directoryError) { error = "cannot enter build directory: " + directoryError.message(); return false; }
+        const int commandStatus = runNativeShell(task.command);
+        std::error_code restoreError;
+        std::filesystem::current_path(originalDirectory, restoreError);
+        if (restoreError) { error = "cannot restore current directory: " + restoreError.message(); return false; }
+        if (commandStatus != 0) { error = "task '" + task.name + "' failed"; return false; }
         if (!outputsExist(task)) { error = "task '" + task.name + "' completed but did not create every declared output"; return false; }
         std::error_code createError; std::filesystem::create_directories(state.parent_path(), createError); if (createError) { error = "cannot create state directory: " + createError.message(); return false; }
         const auto temporary = state.string() + ".tmp"; { std::ofstream output(temporary); if (!output) { error = "cannot write state for '" + task.name + "'"; return false; } output << fingerprint << '\n'; }

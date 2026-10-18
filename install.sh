@@ -1,13 +1,8 @@
-/*  This is the project form creator Chirag Balakrishna.
-    This project is licensed under GPLv3
-    Thats it ! Feel free to contribute !! Happy Journey 😀
-*/
-
 #!/usr/bin/env bash
 
 set -e
 
-echo "🚀 Setting up Nexe V1 (Python + C++ Core)..."
+echo "🚀 Setting up Nexe (C++ Core)..."
 
 # 1. Verify system requirements
 if ! command -v cmake &> /dev/null; then
@@ -20,17 +15,9 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-# 2. Build the C++ Performance Core
+# 2. Build the C++ Performance Core for the current AMD64/AArch64 machine.
 echo "🔨 Compiling C++ DAG and Hashing engine..."
-mkdir -p build
-cd build
-cmake ..
-make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
-cd ..
+cmake -S . -B build
+cmake --build build --parallel "$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)"
 
-# 3. Install the Python CLI wrapper
-echo "📦 Installing Python CLI package..."
-python3 -m pip install --upgrade pip
-python3 -m pip install -e .
-
-echo "✅ Nexe installation complete! Verify it works by running: Nexe --help"
+echo "✅ Nexe installation complete! Verify it with: ./build/nexe_engine build BUILD.sbl"

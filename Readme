@@ -47,5 +47,25 @@ node build_nexe {
 
 The bridge builds the C++ engine automatically when no `--engine` path or `NEXE_ENGINE` environment variable is supplied.
 
+## Platforms and architectures
+
+Nexe runs on Linux, macOS, and Windows for native AMD64 (`x86_64`) and AArch64 (`arm64`) toolchains. Unix task commands run through the system shell; Windows task commands run through PowerShell without requiring `cmd.exe` command quoting.
+
+On Windows, build from PowerShell:
+
+```powershell
+.\install.ps1 -Architecture amd64
+# Or use -Architecture aarch64 from an ARM64 Visual Studio toolchain.
+```
+
+For Linux cross-compilation, install the relevant GNU cross-compiler and pass a toolchain file:
+
+```bash
+cmake -S . -B build-aarch64 \
+  -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/linux-aarch64.cmake \
+  -DNEXE_TARGET_ARCH=aarch64
+cmake --build build-aarch64
+```
+
 ## License
 This project is licensed under the GNU General Public License v3.0 (GPLv3). See the [LICENSE](LICENSE) file for details.

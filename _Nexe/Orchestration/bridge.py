@@ -16,7 +16,14 @@ TEMPLATES = Path(__file__).resolve().parent / "templates"
 
 def engine_binary(explicit: str | None) -> str:
     """Return an executable engine path, building it with CMake only if needed."""
-    candidates = [explicit, os.environ.get("NEXE_ENGINE"), ROOT / "build" / "nexe_engine", shutil.which("nexe_engine")]
+    executable = "nexe_engine.exe" if os.name == "nt" else "nexe_engine"
+    candidates = [
+        explicit,
+        os.environ.get("NEXE_ENGINE"),
+        ROOT / "build" / executable,
+        ROOT / "build" / "Release" / executable,
+        shutil.which(executable),
+    ]
     for candidate in candidates:
         if candidate and Path(candidate).is_file():
             return str(candidate)
@@ -24,10 +31,10 @@ def engine_binary(explicit: str | None) -> str:
     build_dir = ROOT / "build"
     subprocess.run(["cmake", "-S", str(ROOT), "-B", str(build_dir)], check=True)
     subprocess.run(["cmake", "--build", str(build_dir)], check=True)
-    built = build_dir / "nexe_engine"
-    if not built.is_file():
-        raise RuntimeError("CMake completed but did not create nexe_engine")
-    return str(built)
+    for built in (build_dir / executable, build_dir / "Release" / executable):
+        if built.is_file():
+            return str(built)
+    raise RuntimeError(f"CMake completed but did not create {executable}")
 
 
 def run_engine(args: argparse.Namespace) -> int:
