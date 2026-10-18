@@ -54,6 +54,17 @@ var hashCmd = &cobra.Command{
 	RunE: func(_ *cobra.Command, args []string) error { return runBridge("hash", args[0]) },
 }
 
+var renderBuildStreamCmd = &cobra.Command{
+	Use:   "render-bst [buildstream-directory]",
+	Short: "Render deterministic Starlark templates into BuildStream .bst files",
+	Args:  cobra.MaximumNArgs(1),
+	RunE: func(_ *cobra.Command, args []string) error {
+		directory := "buildstream"
+		if len(args) == 1 { directory = args[0] }
+		return runBridge("render-bst", directory)
+	},
+}
+
 func Execute() {
 	if err := rootCmd.Execute(); err != nil { fmt.Fprintln(os.Stderr, "nexe:", err); os.Exit(1) }
 }
@@ -77,5 +88,5 @@ func runBridge(action, target string) error {
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&enginePath, "engine", "", "path to the nexe_engine executable")
-	rootCmd.AddCommand(buildCmd, initCmd, hashCmd)
+	rootCmd.AddCommand(buildCmd, initCmd, hashCmd, renderBuildStreamCmd)
 }

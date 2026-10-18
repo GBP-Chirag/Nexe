@@ -1,9 +1,16 @@
 # Nexe's default build language. Run: nexe build BUILD.sbl
-COMPILER = "cc"
-OUTPUT_BIN = "hello"
+# The toolchain name stays constant when its compiler changes per platform.
+toolchain host_c {
+    flavor = "gnu"
+    cc = "cc"
+    cxx = "c++"
+    cflags = []
+    cxxflags = ["-std=c++17"]
+    ldflags = []
+}
 
-node hello {
+cc_binary hello {
+    toolchain "host_c"
     source "hello.c"
-    target "${OUTPUT_BIN}"
-    run "${COMPILER} $SOURCES -o $TARGET"
+    target "hello"
 }

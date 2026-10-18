@@ -7,7 +7,7 @@ name = "Nexe"
 version = "0.1.0"
 description = "A fast, lightweight local build system"
 readme = "Readme"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
     # Uses Python 3.11+ built-in tomllib, or add dependencies here if needed
 ]

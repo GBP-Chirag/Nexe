@@ -147,30 +147,114 @@ bool finishSblNode(Task& task, std::string commandTemplate,
     return true;
 }
 
+struct Toolchain {
+    std::string name;
+    std::string flavor = "gnu";
+    std::string cc;
+    std::string cxx;
+    std::vector<std::string> cflags;
+    std::vector<std::string> cxxflags;
+    std::vector<std::string> ldflags;
+};
+
+bool parseToolchainField(Toolchain& toolchain, const std::string& key, std::string value,
+                         const std::unordered_map<std::string, std::string>& variables, std::string& error) {
+    if (key == "cc" || key == "cxx" || key == "flavor") {
+        if (value.size() < 2 || value.front() != '"' || value.back() != '"') { error = key + " must be a quoted string"; return false; }
+        value = value.substr(1, value.size() - 2);
+        if (!expandVariables(value, variables, error)) return false;
+        if (key == "cc") toolchain.cc = std::move(value);
+        else if (key == "cxx") toolchain.cxx = std::move(value);
+        else toolchain.flavor = std::move(value);
+        return true;
+    }
+    if (key == "cflags" || key == "cxxflags" || key == "ldflags") {
+        std::vector<std::string> flags;
+        if (!stringArray(value, flags)) { error = key + " must be an array of quoted strings"; return false; }
+        for (auto& flag : flags) if (!expandVariables(flag, variables, error)) return false;
+        if (key == "cflags") toolchain.cflags = std::move(flags);
+        else if (key == "cxxflags") toolchain.cxxflags = std::move(flags);
+        else toolchain.ldflags = std::move(flags);
+        return true;
+    }
+    error = "unknown toolchain key '" + key + "'"; return false;
+}
+
+bool finishToolchain(Toolchain toolchain, std::unordered_map<std::string, Toolchain>& toolchains, std::string& error) {
+    if (toolchain.name.empty() || toolchain.cc.empty() || toolchain.cxx.empty()) { error = "toolchain needs name, cc, and cxx"; return false; }
+    if (toolchain.flavor != "gnu" && toolchain.flavor != "msvc") { error = "toolchain flavor must be gnu or msvc"; return false; }
+    if (!toolchains.emplace(toolchain.name, std::move(toolchain)).second) { error = "duplicate toolchain"; return false; }
+    return true;
+}
+
+void appendArguments(std::string& command, const std::vector<std::string>& arguments) {
+    for (const auto& argument : arguments) command += " " + argument;
+}
+
+bool finishCompiledRule(Task& task, const std::string& toolchainName, bool cxx,
+                        const std::unordered_map<std::string, Toolchain>& toolchains, std::vector<Task>& tasks,
+                        std::string& error) {
+    if (task.name.empty() || task.inputs.empty() || task.outputs.empty()) { error = "compiled rules need a name, at least one source, and a target"; return false; }
+    const auto selected = toolchains.find(toolchainName);
+    if (selected == toolchains.end()) { error = "rule '" + task.name + "' selects unknown toolchain '" + toolchainName + "'"; return false; }
+    const Toolchain& toolchain = selected->second;
+    const std::string& compiler = cxx ? toolchain.cxx : toolchain.cc;
+    const std::vector<std::string>& flags = cxx ? toolchain.cxxflags : toolchain.cflags;
+    std::string command = compiler;
+    if (toolchain.flavor == "msvc") command += " /nologo";
+    appendArguments(command, flags);
+    for (const auto& source : task.inputs) command += " " + shellQuote(source);
+    if (toolchain.flavor == "msvc") command += " /Fe:" + shellQuote(task.outputs.front());
+    else command += " -o " + shellQuote(task.outputs.front());
+    appendArguments(command, toolchain.ldflags);
+    task.command = std::move(command);
+    tasks.push_back(std::move(task));
+    return true;
+}
+
+bool blockHeader(const std::string& line, const std::string& keyword, std::string& name) {
+    if (line.rfind(keyword + " ", 0) != 0 || line.back() != '{') return false;
+    name = trim(line.substr(keyword.size() + 1, line.size() - keyword.size() - 2));
+    return !name.empty() && name.find_first_of(" \t") == std::string::npos;
+}
+
 bool parseSbl(std::istream& file, std::vector<Task>& tasks, std::string& error) {
     std::unordered_map<std::string, std::string> variables;
-    Task current; std::string commandTemplate, line; bool inNode = false; std::size_t lineNumber = 0;
+    std::unordered_map<std::string, Toolchain> toolchains;
+    enum class Block { none, node, toolchain, cc_binary, cxx_binary };
+    Task current; Toolchain currentToolchain; std::string commandTemplate, selectedToolchain, line; Block block = Block::none; std::size_t lineNumber = 0;
     while (std::getline(file, line)) {
         ++lineNumber; const auto comment = line.find('#'); if (comment != std::string::npos) line.erase(comment); line = trim(line);
         if (line.empty()) continue;
         if (line == "}") {
-            if (!inNode) { error = "line " + std::to_string(lineNumber) + ": unexpected '}'"; return false; }
-            if (!finishSblNode(current, commandTemplate, variables, tasks, error)) { error = "line " + std::to_string(lineNumber) + ": " + error; return false; }
-            current = Task{}; commandTemplate.clear(); inNode = false; continue;
+            if (block == Block::none) { error = "line " + std::to_string(lineNumber) + ": unexpected '}'"; return false; }
+            bool finished = false;
+            if (block == Block::node) finished = finishSblNode(current, commandTemplate, variables, tasks, error);
+            else if (block == Block::toolchain) finished = finishToolchain(std::move(currentToolchain), toolchains, error);
+            else finished = finishCompiledRule(current, selectedToolchain, block == Block::cxx_binary, toolchains, tasks, error);
+            if (!finished) { error = "line " + std::to_string(lineNumber) + ": " + error; return false; }
+            current = Task{}; currentToolchain = Toolchain{}; commandTemplate.clear(); selectedToolchain.clear(); block = Block::none; continue;
         }
-        if (!inNode && line.rfind("node ", 0) == 0 && line.back() == '{') {
-            const std::string name = trim(line.substr(5, line.size() - 6));
-            if (name.empty() || name.find_first_of(" \t") != std::string::npos) { error = "line " + std::to_string(lineNumber) + ": node name must be one word"; return false; }
-            current.name = name; inNode = true; continue;
+        if (block == Block::none) {
+            std::string name;
+            if (blockHeader(line, "node", name)) { current.name = name; block = Block::node; continue; }
+            if (blockHeader(line, "toolchain", name)) { currentToolchain.name = name; block = Block::toolchain; continue; }
+            if (blockHeader(line, "cc_binary", name)) { current.name = name; block = Block::cc_binary; continue; }
+            if (blockHeader(line, "cxx_binary", name)) { current.name = name; block = Block::cxx_binary; continue; }
         }
-        if (!inNode) {
+        if (block == Block::none) {
             const auto equals = line.find('=');
-            if (equals == std::string::npos) { error = "line " + std::to_string(lineNumber) + ": expected NAME = \"value\" or node"; return false; }
+            if (equals == std::string::npos) { error = "line " + std::to_string(lineNumber) + ": expected NAME = \"value\", toolchain, node, cc_binary, or cxx_binary"; return false; }
             const std::string key = trim(line.substr(0, equals)), value = trim(line.substr(equals + 1));
             if (key.empty() || value.size() < 2 || value.front() != '"' || value.back() != '"') { error = "line " + std::to_string(lineNumber) + ": variables must use NAME = \"value\""; return false; }
             std::string expanded = value.substr(1, value.size() - 2);
             if (!expandVariables(expanded, variables, error)) { error = "line " + std::to_string(lineNumber) + ": " + error; return false; }
             variables[key] = std::move(expanded); continue;
+        }
+        if (block == Block::toolchain) {
+            const auto equals = line.find('=');
+            if (equals == std::string::npos || !parseToolchainField(currentToolchain, trim(line.substr(0, equals)), trim(line.substr(equals + 1)), variables, error)) { error = "line " + std::to_string(lineNumber) + ": " + (equals == std::string::npos ? "toolchain fields must contain '='" : error); return false; }
+            continue;
         }
         std::string value;
         if (quotedValue(line, "source", value)) {
@@ -182,10 +266,11 @@ bool parseSbl(std::istream& file, std::vector<Task>& tasks, std::string& error) 
             current.outputs.push_back(std::move(value)); continue;
         }
         if (quotedValue(line, "depends", value)) { current.dependencies.push_back(std::move(value)); continue; }
-        if (quotedValue(line, "run", value)) { commandTemplate = std::move(value); continue; }
-        error = "line " + std::to_string(lineNumber) + ": expected source, target, depends, run, or '}'"; return false;
+        if (quotedValue(line, "toolchain", value) && block != Block::node) { selectedToolchain = std::move(value); continue; }
+        if (quotedValue(line, "run", value) && block == Block::node) { commandTemplate = std::move(value); continue; }
+        error = "line " + std::to_string(lineNumber) + ": invalid field for this block"; return false;
     }
-    if (inNode) { error = "node '" + current.name + "' is missing closing '}'"; return false; }
+    if (block != Block::none) { error = "build block is missing closing '}'"; return false; }
     if (tasks.empty()) { error = "BUILD.sbl contains no nodes"; return false; }
     return true;
 }

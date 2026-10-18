@@ -12,20 +12,27 @@ Nexe is a lightweight, declarative local build system. Its C++17 engine builds a
 ## Example `BUILD.sbl`
 
 ```sbl
-# BUILD.sbl
-COMPILER = "g++"
-OUTPUT_BIN = "build/nexe"
+toolchain host_cpp {
+    # Linux: g++, macOS: clang++, Windows Developer PowerShell: cl
+    # Keep the rule unchanged and replace only this provider as needed.
+    flavor = "gnu"
+    cc = "gcc"
+    cxx = "g++"
+    cflags = []
+    cxxflags = ["-std=c++17", "-Icore_cpp/include"]
+    ldflags = []
+}
 
-node build_nexe {
+cxx_binary build_nexe {
+    toolchain "host_cpp"
     source "core_cpp/src/main.cpp"
     source "core_cpp/src/dag.cpp"
     source "core_cpp/src/hasher.cpp"
-
-    target "${OUTPUT_BIN}"
-
-    run "${COMPILER} -std=c++17 -I core_cpp/include $SOURCES -o $TARGET"
+    target "build/nexe"
 }
 ```
+
+`cc_binary` and `cxx_binary` are built-in rules. They receive compiler names, flags, and linker flags from a named `toolchain` block; the same rule works with a GNU/Clang toolchain (`flavor = "gnu"`) or an MSVC one (`flavor = "msvc"`, `cc = "cl"`, `cxx = "cl"`). Compiler names are resolved from `PATH`, so build files do not need hardcoded machine-specific paths. Use `node` with `run` only for custom commands.
 
 ## Getting Started
 
@@ -46,6 +53,19 @@ node build_nexe {
    ```
 
 The bridge builds the C++ engine automatically when no `--engine` path or `NEXE_ENGINE` environment variable is supplied.
+
+## BuildStream templates
+
+`_Nexe/Orchestration/templates/buildstream/` is a BuildStream project template, not an Nexe build file. Its Starlark entrypoint (`render.star`) builds dictionaries and lists for elements and emits deterministic, static `.bst` YAML into `elements/`. It does not run shell commands or access the filesystem itself.
+
+The checked-in `elements/hello.bst` is the current rendered output. Regenerate it after changing `render.star` with a Canonical Starlark interpreter:
+
+```bash
+go install github.com/canonical/starlark/cmd/starlark@latest
+nexe render-bst _Nexe/Orchestration/templates/buildstream
+```
+
+Nexe validates every emitted path before writing and rejects output outside the template's `elements/` directory.
 
 ## Platforms and architectures
 

@@ -58,18 +58,67 @@ def initialise(directory: str) -> int:
             raise RuntimeError(f"refusing to overwrite {target}")
         shutil.copyfile(source, target)
         print(f"created {target}")
+    buildstream_source = TEMPLATES / "buildstream"
+    buildstream_target = destination / "buildstream"
+    if buildstream_target.exists():
+        raise RuntimeError(f"refusing to overwrite {buildstream_target}")
+    shutil.copytree(buildstream_source, buildstream_target)
+    print(f"created {buildstream_target}")
+    return 0
+
+
+def render_buildstream(directory: str) -> int:
+    """Run a side-effect-free Starlark template and materialize only .bst files."""
+    template_root = Path(directory).resolve()
+    script = template_root / "render.star"
+    if not script.is_file():
+        raise RuntimeError(f"missing Starlark entrypoint {script}")
+    interpreter = os.environ.get("STARLARK") or shutil.which("starlark")
+    if not interpreter:
+        raise RuntimeError("Starlark interpreter not found; set STARLARK or install github.com/canonical/starlark/cmd/starlark")
+    result = subprocess.run(
+        [interpreter, str(script)], cwd=template_root, check=True, text=True,
+        capture_output=True, timeout=30,
+    )
+    elements: dict[Path, list[str]] = {}
+    current: Path | None = None
+    for line in result.stdout.splitlines():
+        if line.startswith("@@NEXE_BST "):
+            relative = Path(line.removeprefix("@@NEXE_BST "))
+            if relative.suffix != ".bst" or relative.is_absolute() or ".." in relative.parts:
+                raise RuntimeError(f"Starlark emitted unsafe element path: {relative}")
+            if relative in elements:
+                raise RuntimeError(f"Starlark emitted duplicate element: {relative}")
+            elements[relative] = []
+            current = relative
+        elif current is None:
+            if line:
+                raise RuntimeError("Starlark output must begin with an @@NEXE_BST header")
+        else:
+            elements[current].append(line)
+    if not elements:
+        raise RuntimeError("Starlark template emitted no BuildStream elements")
+    for relative, lines in elements.items():
+        destination = template_root / "elements" / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        print(f"rendered {destination}")
     return 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Nexe orchestration bridge")
-    parser.add_argument("command", choices=("build", "hash", "init"))
-    parser.add_argument("target", help="manifest/file for build or hash; destination for init")
+    parser.add_argument("command", choices=("build", "hash", "init", "render-bst"))
+    parser.add_argument("target", help="manifest/file, init destination, or BuildStream template directory")
     parser.add_argument("--engine", help="path to an existing nexe_engine executable")
     args = parser.parse_args()
     try:
-        return initialise(args.target) if args.command == "init" else run_engine(args)
-    except (OSError, subprocess.CalledProcessError, RuntimeError) as error:
+        if args.command == "init":
+            return initialise(args.target)
+        if args.command == "render-bst":
+            return render_buildstream(args.target)
+        return run_engine(args)
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired, RuntimeError) as error:
         print(f"nexe bridge: {error}", file=sys.stderr)
         return 1
 
