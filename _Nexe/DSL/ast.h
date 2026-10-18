@@ -5,33 +5,29 @@
 #ifndef NEXE_DSL_AST_H
 #define NEXE_DSL_AST_H
 
-#include <string>
-#include <vector>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-namespace nexe::dsl {
+typedef struct AST AST; // Forward reference
 
 // These nodes describe the public BUILD.sbl model. The C++ engine currently
 // evaluates the built-in C/C++ rules directly; a future extension evaluator
 // can use the same stable rule/toolchain boundary.
-struct Toolchain {
-    std::string name;
-    std::string flavor; // "gnu" or "msvc"
-    std::string cc;
-    std::string cxx;
-    std::vector<std::string> cflags;
-    std::vector<std::string> cxxflags;
-    std::vector<std::string> ldflags;
+struct AST {
+    enum {
+        AST_BUILD,
+    AST_TASK,
+    AST_RUN,
+  } tag;
+  union {
+    struct AST_BUILD {  number; } AST_NUMBER;
+    struct AST_TASK { AST *left; AST *right; } AST_ADD;
+    struct AST_RUN { AST *left; AST *right; } AST_MUL;
+  } data;
 };
 
-struct Rule {
-    std::string kind; // cc_binary, cxx_binary, or node
-    std::string name;
-    std::string toolchain;
-    std::vector<std::string> sources;
-    std::vector<std::string> outputs;
-    std::vector<std::string> dependencies;
-};
-
-} // namespace nexe::dsl
+    
+ // namespace nexe::dsl
 
 #endif // NEXE_DSL_AST_H
