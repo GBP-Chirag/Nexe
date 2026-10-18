@@ -2,6 +2,9 @@
 *.ts linguist-detectable=false
 *.tsx linguist-detectable=false
 
-# Example: Mark build outputs or specific generated Makefiles as ignored
-build/* linguist-generated=false
-Makefile linguist-generated=false
+# Exclude Makefiles from the language stats bar
+Makefile -linguist-detectable
+*.mk -linguist-detectable
+
+# If your build folder or binary objects are accidentally tracked, exclude them too:
+build/** linguist-vendored
