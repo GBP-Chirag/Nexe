@@ -27,7 +27,6 @@ struct AST {
   } data;
 };
 
-    
  // namespace nexe::dsl
 
 #endif // NEXE_DSL_AST_H
