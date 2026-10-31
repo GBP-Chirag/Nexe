@@ -14,3 +14,43 @@ CMakeLists.txt linguist-detectable=false
 *.cmake linguist-detectable=false
 *.cmake.in linguist-detectable=false
 
+# 1. Force explicit language classification for your files
+*.cpp linguist-language=C++
+*.cc linguist-language=C++
+*.h linguist-language=C++
+
+*.c linguist-language=C
+
+*.go linguist-language=Go
+
+*.sh linguist-language=Shell
+
+*.ps1 linguist-language=PowerShell
+*.psm1 linguist-language=PowerShell
+
+*.star linguist-language=Starlark
+BUCK linguist-language=Starlark
+BUILD linguist-language=Starlark
+
+# 2. Ensure GitHub forces these specific file types to be included in the stats
+*.cpp linguist-detectable=true
+*.c linguist-detectable=true
+*.go linguist-detectable=true
+*.sh linguist-detectable=true
+*.ps1 linguist-detectable=true
+*.star linguist-detectable=true
+BUILD linguist-detectable=true
+
+# 3. Optional: Block unwanted languages or vendor folders from polluting the bar
+*.* linguist-detectable=false
+*.cpp linguist-detectable=true
+*.c linguist-detectable=true
+*.go linguist-detectable=true
+*.sh linguist-detectable=true
+*.ps1 linguist-detectable=true
+*.star linguist-detectable=true
+
+# Ignore external dependencies or node_modules if they are muddying your chart
+node_modules/* linguist-vendored
+vendor/* linguist-vendored
+
