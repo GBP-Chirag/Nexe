@@ -1,3 +1,6 @@
+<div align="left">
+  <img src="nexe-logo.png" alt="Nexe Logo" width="280" />[cite: 3]
+
 Welcome to the official Nexe documentation wiki! This page provides a complete architectural breakdown, philosophy, roadmap, usage guides, and contribution guidelines for the Nexe build system.
 
 # What is Nexe?
