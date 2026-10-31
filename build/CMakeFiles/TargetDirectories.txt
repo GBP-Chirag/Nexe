@@ -1,3 +1,0 @@
-/home/chirag/Desktop/Nexe/build/CMakeFiles/Nexe_engine.dir
-/home/chirag/Desktop/Nexe/build/CMakeFiles/edit_cache.dir
-/home/chirag/Desktop/Nexe/build/CMakeFiles/rebuild_cache.dir
