@@ -1,6 +1,3 @@
-<div align="left">
-  ![Nexe Logo](./image.png)
-
 Welcome to the official Nexe documentation wiki! This page provides a complete architectural breakdown, philosophy, roadmap, usage guides, and contribution guidelines for the Nexe build system.
 
 # What is Nexe?
