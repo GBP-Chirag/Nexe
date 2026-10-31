@@ -26,11 +26,20 @@ else()
 endif()
 message(STATUS "Nexe target: ${CMAKE_SYSTEM_NAME} ${NEXE_RESOLVED_ARCH}")
 
-add_executable(nexe_engine
-    src/main.cpp
-    src/dag.cpp
-    src/hasher.cpp
-)
+if(NOT DEFINED SRC_LIST OR "${SRC_LIST}" STREQUAL "")
+    unset(SRC_LIST)
+    file(GLOB_RECURSE SRC_LIST CONFIGURE_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cc"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cxx")
+endif()
+
+if(NOT SRC_LIST OR "${SRC_LIST}" STREQUAL "")
+    message(FATAL_ERROR "No source files found for nexe_engine. Add sources to SRC_LIST or create files under ${CMAKE_CURRENT_SOURCE_DIR}/src.")
+endif()
+
+add_executable(nexe_engine ${SRC_LIST})
+
 target_include_directories(nexe_engine PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_definitions(nexe_engine PRIVATE NEXE_TARGET_ARCH="${NEXE_RESOLVED_ARCH}")
 
