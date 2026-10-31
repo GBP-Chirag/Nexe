@@ -1,11 +1,19 @@
 <div align="left">
-  <img src="Desktop/Nexe/image.png" alt="Nexe Logo" width="280" />[cite: 3]
+  ![Nexe Logo](./image.png)
 
 Welcome to the official Nexe documentation wiki! This page provides a complete architectural breakdown, philosophy, roadmap, usage guides, and contribution guidelines for the Nexe build system.
 
 # What is Nexe?
 
 Nexe is a custom-built, minimalist, high-performance, polyglot build system engineered for total architectural ownership. It bridges the gap between small local compilation pipelines and enterprise-scale multi-language builds without relying on heavy Python interpreters, uncustomizable third-party frameworks, or rigid execution protocols.
+
+<p>
+    <img src="https://img.shields.io/badge/core-C++%20%2F%20C-blue" alt="Core C/C++">
+    <img src="https://img.shields.io/badge/cli-%20Go-00ADD8" alt="Go CLI">
+    <img src="https://img.shields.io/badge/engine-BuildKit%20%2B%20Dagger-orange" alt="Unified Engine">
+    <img src="https://img.shields.io/badge/license-GPL-green" alt="License">
+  </p>
+</div>
 
 ### Nexe models codebases as a living network graph:
 
