@@ -1,91 +1,143 @@
- # Nexe 
+Welcome to the official Nexe documentation wiki! This page provides a complete architectural breakdown, philosophy, roadmap, usage guides, and contribution guidelines for the Nexe build system.
 
-Nexe is a lightweight, declarative local build system. Its C++17 engine builds a Directed Acyclic Graph (DAG), fingerprints task inputs with BLAKE3, and skips a task when its inputs and command have not changed. The Go CLI uses Cobra and invokes the engine through a small Python bridge.
+# What is Nexe?
 
-## Features (V1)
-- **SBL Configuration**: A concise `BUILD.sbl` language for variables and build nodes.
-- **TOML Compatibility**: Existing `build.toml` files remain supported while SBL becomes the default.
-- **DAG Engine**: Resolves task order and reports circular or missing dependencies.
-- **BLAKE3 Hashing**: Stores content fingerprints in `.nexe/state/` only after a task succeeds.
-- **Incremental Builds**: A task is skipped when its command and declared inputs match its saved fingerprint and its outputs still exist.
+Nexe is a custom-built, minimalist, high-performance, polyglot build system engineered for total architectural ownership. It bridges the gap between small local compilation pipelines and enterprise-scale multi-language builds without relying on heavy Python interpreters, uncustomizable third-party frameworks, or rigid execution protocols.
 
-## Example `BUILD.sbl`
+### Nexe models codebases as a living network graph:
 
-```sbl
-toolchain host_cpp {
-    # Linux: g++, macOS: clang++, Windows Developer PowerShell: cl
-    # Keep the rule unchanged and replace only this provider as needed.
-    flavor = "gnu"
-    cc = "gcc"
-    cxx = "g++"
-    cflags = []
-    cxxflags = ["-std=c++17", "-Icore_cpp/include"]
-    ldflags = []
+    Nodes (Dots): Directories and workspace folders.
+
+    Edges: Files and relational dependencies connecting each node.
+
+### The Polyglot Tech Stack
+
+    C (core_c/): High-speed lexical analysis (Flex), parsing (Bison), AST generation, and raw cryptographic hashing via BLAKE3.
+
+    C++ (core_cpp/): Performance-critical Directed Acyclic Graph (DAG) sorting, content-addressable storage (CAS), and local cache validation.
+
+    Go (cmd/nexe/, pkg/): Concurrent task dispatcher, worker pool scheduler, process isolation, and universal package command delegation.
+
+    Embedded BuildKit + Dagger: In-process container-native execution engine triggered when scaling to enterprise workloads.
+
+    Config Formats: Starlark (.sbl scripts), Canonical JSON (nexe.workspace.json), and TOML (nexe.toml, NTAKE.toml).
+
+# Why Was Nexe Built?
+
+Existing build systems force developers into trade-offs:
+
+    Traditional build tools (like Make, CMake, Ninja) excel at fast local execution but struggle with container-native isolation, distributed caching, and clean monorepo management across languages.
+
+    Enterprise systems (like Bazel or legacy BuildStream architectures) offer reproducibility and scale, but often come with steep learning curves, massive interpreter overhead (Python/Java), or locked protocol structures.
+
+### The Nexe Solution
+
+Nexe was built to deliver uncompromised speed and total control:
+
+    Native Speed First: Small to medium projects compile instantly using local C/C++ memory structures and memory-mapped file access.
+
+    Dynamic Scaling Router: When a project crosses the 50,000 Lines of Code (LOC) threshold, Nexe automatically routes execution to an embedded BuildKit + Dagger control plane running inside the Go process memory.
+
+    Universal Package Management: Integrates NTAKE.toml to unify dependencies across ecosystems (Python, Node, Rust, Go) under a single declarative command syntax.
+
+    Full OS & Container Output: Native support for emitting standard object binaries, compressed archives (.tar, .gz), OCI container images, and full bootable OS sysroot images (.iso).
+
+ # Roadmap & Future Plans
+
+Nexe is built in parallel with a rigorous systems engineering curriculum (C, C++, Linux Kernel, CyberOps). Below is the multi-stage deployment path:
+Phase 1: Local Polyglot Core (v0.1 — Current)
+
+    [x] Establish Flex/Bison parsing flow and BLAKE3 C++ cryptographic hash validation.
+
+    [x] Implement folder-as-node & file-as-edge C++ DAG graph engine.
+
+    [x] Define Go CLI router and 50K LOC threshold scheduler.
+
+    [x] Scaffold NTAKE.toml package delegation layer.
+
+Phase 2: In-Process Engine & Universal Storage (v0.2)
+
+    [ ] Direct embedded integration of moby/buildkit and dagger/dagger Go modules.
+
+    [ ] Implement OpenDAL storage abstraction for seamless local disk, tarball, and S3 caching.
+
+    [ ] High-density code compression pipeline (Vector sorting + Zstd/LZMA pass).
+
+    [ ] Header/payload encryption using Argon2id + AES-256-GCM.
+
+Phase 3: Advanced Storage & Networking (v0.3)
+
+    [ ] Bidirectional gRPC-over-TCP multiplexed socket tunnel pipe for distributed nodes.
+
+    [ ] Custom Multi-Version Concurrency Control (MVCC) build ledger for instant incremental rollbacks.
+
+    [ ] Rule-based Starlark Query Optimizer for large workspace AST evaluations.
+
+Phase 4: Enterprise Orchestration & Ecosystem (v1.0)
+
+    [ ] Cadence/Temporal-style workflow backend orchestration.
+
+    [ ] Full OS rootfs generation and automated .iso bootable image bundling via LLB exporters.
+
+    [ ] CI/CD pipeline plugins and native IDE extensions.
+
+# Configuration & Usage Examples
+1. Defining Workspace Nodes (nexe.workspace.json)
+JSON
+
+{
+  "workspace": "monorepo-core",
+  "root_nodes": ["src/", "core_cpp/", "cmd/"],
+  "cache_backend": "local",
+  "loc_threshold": 50000
 }
 
-cxx_binary build_nexe {
-    toolchain "host_cpp"
-    source "core_cpp/src/main.cpp"
-    source "core_cpp/src/dag.cpp"
-    source "core_cpp/src/hasher.cpp"
-    target "build/nexe"
+2. Defining Build Scripts (MODULE.sbl)
+Code snippet
+
+target "nexe_core" {
+    sources = ["core_cpp/engine.cpp", "core_cpp/dag.cpp"]
+    flags   = ["-O3", "-std=c++20"]
+    output  = "bin/nexe-core"
 }
-```
 
-`cc_binary` and `cxx_binary` are built-in rules. They receive compiler names, flags, and linker flags from a named `toolchain` block; the same rule works with a GNU/Clang toolchain (`flavor = "gnu"`) or an MSVC one (`flavor = "msvc"`, `cc = "cl"`, `cxx = "cl"`). Compiler names are resolved from `PATH`, so build files do not need hardcoded machine-specific paths. Use `node` with `run` only for custom commands.
+3. Universal Package Manifest (NTAKE.toml)
+Ini, TOML
 
-## Getting Started
+[project]
+name = "nexe-service"
+version = "0.1.0"
 
-1. Build the engine:
-   ```bash
-   cmake -S . -B build
-   cmake --build build
-   ```
-2. Run an SBL build file directly:
-   ```bash
-   ./build/nexe_engine build BUILD.sbl
-   ```
-3. Or install Go, then use the Cobra CLI:
-   ```bash
-   cd Nexe_CLI
-   go run . init ../example
-   go run . build ../example/BUILD.sbl
-   ```
+[dependencies]
+python = ["requests==2.31.0"]
+node   = ["express@4.18.2"]
+rust   = ["tokio = { version = \"1.0\" }"]
 
-The bridge builds the C++ engine automatically when no `--engine` path or `NEXE_ENGINE` environment variable is supplied.
+# 🤝 Contribution Guidelines
 
-## BuildStream templates
+We welcome contributions from systems engineers, language enthusiasts, and open-source developers!
+Standard Workflow
 
-`_Nexe/Orchestration/templates/buildstream/` is a BuildStream project template, not an Nexe build file. Its Starlark entrypoint (`render.star`) builds dictionaries and lists for elements and emits deterministic, static `.bst` YAML into `elements/`. It does not run shell commands or access the filesystem itself.
+    Fork the Repository: Create your own copy of GBP-Chirag/Nexe.
 
-The checked-in `elements/hello.bst` is the current rendered output. Regenerate it after changing `render.star` with a Canonical Starlark interpreter:
+    Create a Feature Branch:
+    Bash
 
-```bash
-go install github.com/canonical/starlark/cmd/starlark@latest
-nexe render-bst _Nexe/Orchestration/templates/buildstream
-```
+    git checkout -b feat/dag-optimizer
 
-Nexe validates every emitted path before writing and rejects output outside the template's `elements/` directory.
+    Follow Code Rules:
 
-## Platforms and architectures
+        C/C++ (core_c/, core_cpp/): Follow strict RAII principles, avoid unmanaged raw pointer allocations, and ensure no memory leaks exist on parse failures.
 
-Nexe runs on Linux, macOS, and Windows for native AMD64 (`x86_64`) and AArch64 (`arm64`) toolchains. Unix task commands run through the system shell; Windows task commands run through PowerShell without requiring `cmd.exe` command quoting.
+        Go (pkg/, cmd/): Ensure thread safety across goroutines and keep context cancellation clean.
 
-On Windows, build from PowerShell:
+    Run Tests: Ensure all existing C/C++ unit tests and Go worker checks pass:
+    Bash
 
-```powershell
-.\install.ps1 -Architecture amd64
-# Or use -Architecture aarch64 from an ARM64 Visual Studio toolchain.
-```
+    make test
 
-For Linux cross-compilation, install the relevant GNU cross-compiler and pass a toolchain file:
+    Open a Pull Request: Submit a descriptive PR linking to any relevant issue or architectural spec.
 
-```bash
-cmake -S . -B build-aarch64 \
-  -DCMAKE_TOOLCHAIN_FILE=cmake/toolchains/linux-aarch64.cmake \
-  -DNEXE_TARGET_ARCH=aarch64
-cmake --build build-aarch64
-```
+Questions or Suggestions?
 
-## License
-This project is licensed under the GNU General Public License v3.0 (GPLv3). See the [LICENSE](LICENSE) file for details.
+Feel free to open an issue or reach out via discussions on the Nexe GitHub Repository!
