@@ -24,6 +24,7 @@ CMakeLists.txt linguist-detectable=false
 *.go linguist-language=Go
 
 *.sh linguist-language=Shell
+*.bash linguist-language=Bash
 
 *.ps1 linguist-language=PowerShell
 *.psm1 linguist-language=PowerShell
@@ -39,6 +40,7 @@ BUILD linguist-language=Starlark
 *.sh linguist-detectable=true
 *.ps1 linguist-detectable=true
 *.star linguist-detectable=true
+*.bash linguist-detectable=true
 BUILD linguist-detectable=true
 
 # 3. Optional: Block unwanted languages or vendor folders from polluting the bar
@@ -49,6 +51,7 @@ BUILD linguist-detectable=true
 *.sh linguist-detectable=true
 *.ps1 linguist-detectable=true
 *.star linguist-detectable=true
+*.bash linguist-langauge=true
 
 # Ignore external dependencies or node_modules if they are muddying your chart
 node_modules/* linguist-vendored
