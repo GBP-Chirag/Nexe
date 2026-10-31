@@ -38,7 +38,8 @@ if(NOT SRC_LIST OR "${SRC_LIST}" STREQUAL "")
     message(FATAL_ERROR "No source files found for nexe_engine. Add sources to SRC_LIST or create files under ${CMAKE_CURRENT_SOURCE_DIR}/src.")
 endif()
 
-add_executable(nexe_engine ${SRC_LIST})
+add_executable(nexe_engine ${SRC_LIST}
+    Nexe_CLI/parser.h)
 
 target_include_directories(nexe_engine PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_definitions(nexe_engine PRIVATE NEXE_TARGET_ARCH="${NEXE_RESOLVED_ARCH}")
